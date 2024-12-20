@@ -3,6 +3,7 @@ import random
 import uuid
 import time
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
@@ -125,4 +126,5 @@ def check_scan_status(account_uid, domain_uid):
     return jsonify({"error": "Scan not found"}), 404
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))  # Use the PORT environment variable for deployment
+    app.run(host="0.0.0.0", port=port)
