@@ -95,40 +95,41 @@ def request_scan(account_uid, domain_uid):
     }
     return jsonify({"scan_uid": scan_uid}), 200
 
-# Endpoint 4: Check Scan Status
-@app.route("/account/<account_uid>/domain/<domain_uid>/scan", methods=["GET"])
-def check_scan_status(account_uid, domain_uid):
-    # Assume the scan_uid is derived from the domain_uid
-    for scan_uid, scan_data in scans.items():
-        if scan_data["domain_uid"] == domain_uid:
-            # Check if the pending period (5 seconds) is over
-            if time.time() - scan_data["start_time"] > 5:
-                # Generate completed scan result
-                scan_data["status"] = "completed"
-                scan_data["endpoints"] = generate_endpoints()
-            
-            if scan_data["status"] == "pending":
-                return jsonify({
-                    "scan_status": "pending",
-                    "domain": {
-                        "domain_uid": scan_data["domain_uid"],
-                        "name": scan_data["name"],
-                        "timestamp": scan_data["timestamp"],
-                    }
-                }), 200
-            
-            elif scan_data["status"] == "completed":
-                return jsonify({
-                    "scan_status": "completed",
-                    "domain": {
-                        "domain_uid": scan_data["domain_uid"],
-                        "name": scan_data["name"],
-                        "timestamp": scan_data["timestamp"],
-                        "endpoints": scan_data["endpoints"],
-                    }
-                }), 200
+# Endpoint 4: Check Scan Status by Account ID, Domain ID, and Scan ID
+@app.route("/account/<account_uid>/domain/<domain_uid>/scan/<scan_uid>", methods=["GET"])
+def check_scan_status(account_uid, domain_uid, scan_uid):
+    # Fetch scan data using scan_uid
+    scan_data = scans.get(scan_uid)
+    if not scan_data or scan_data["domain_uid"] != domain_uid:
+        return jsonify({"error": "Scan not found"}), 404
 
-    return jsonify({"error": "Scan not found"}), 404
+    # Check if the pending period (5 seconds) is over
+    if time.time() - scan_data["start_time"] > 5:
+        # Generate completed scan result
+        scan_data["status"] = "completed"
+        scan_data["endpoints"] = generate_endpoints()
+
+    # Return the scan data
+    if scan_data["status"] == "pending":
+        return jsonify({
+            "scan_status": "pending",
+            "domain": {
+                "domain_uid": scan_data["domain_uid"],
+                "name": scan_data["name"],
+                "timestamp": scan_data["timestamp"],
+            }
+        }), 200
+    
+    elif scan_data["status"] == "completed":
+        return jsonify({
+            "scan_status": "completed",
+            "domain": {
+                "domain_uid": scan_data["domain_uid"],
+                "name": scan_data["name"],
+                "timestamp": scan_data["timestamp"],
+                "endpoints": scan_data["endpoints"],
+            }
+        }), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Use the PORT environment variable for deployment
