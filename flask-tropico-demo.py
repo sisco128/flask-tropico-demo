@@ -55,6 +55,11 @@ def generate_endpoints():
         endpoints.append(endpoint)
     return endpoints
 
+# Root route for health check
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Tropico Demo API is running!"}), 200
+
 # Endpoint 1: Create Account
 @app.route("/account/", methods=["POST"])
 def create_account():
