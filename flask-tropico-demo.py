@@ -10,6 +10,9 @@ app = Flask(__name__)
 # In-memory storage for scan states
 scans = {}
 
+# Bearer Token (replace with a secure method, such as environment variable)
+BEARER_TOKEN = os.environ.get("BEARER_TOKEN", "your-siscolino-bearer-token")
+
 # Helper function to generate random UIDs
 def generate_uid():
     return str(uuid.uuid4())
@@ -38,11 +41,11 @@ def random_risk_factors():
 # Helper function to generate randomized endpoint details
 def generate_endpoints():
     frameworks = ["Django", "Express", "Spring Boot", "Flask", "Laravel"]
-    api_types = ["REST", "GraphQL", "SOAP"]
+    api_types = ["JSON-API", "HTML WEB"]
     environments = ["Production", "Staging", "Development"]
     
     endpoints = []
-    for _ in range(random.randint(1, 5)):
+    for _ in range(random.randint(3, 10)):
         endpoint = {
             "endpoint_uid": generate_uid(),
             "endpoint_name": f"/api/v1/{random.choice(['users', 'orders', 'payments', 'products', 'inventory'])}",
@@ -55,6 +58,16 @@ def generate_endpoints():
         endpoints.append(endpoint)
     return endpoints
 
+# Middleware to validate Bearer Token
+def validate_bearer_token():
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Unauthorized. Missing or invalid token."}), 401
+    
+    token = auth_header.split(" ")[1]
+    if token != BEARER_TOKEN:
+        return jsonify({"error": "Unauthorized. Invalid token."}), 403
+
 # Root route for health check
 @app.route("/", methods=["GET"])
 def home():
@@ -63,6 +76,9 @@ def home():
 # Endpoint 1: Create Account
 @app.route("/account/", methods=["POST"])
 def create_account():
+    auth_response = validate_bearer_token()
+    if auth_response: return auth_response
+
     if not request.is_json:
         return jsonify({"error": "Invalid content type"}), 400
 
@@ -72,6 +88,9 @@ def create_account():
 # Endpoint 2: Add Domain
 @app.route("/account/<account_uid>/domain", methods=["POST"])
 def add_domain(account_uid):
+    auth_response = validate_bearer_token()
+    if auth_response: return auth_response
+
     if not request.is_json:
         return jsonify({"error": "Invalid content type"}), 400
 
@@ -85,11 +104,14 @@ def add_domain(account_uid):
 # Endpoint 3: Request Domain Scan
 @app.route("/account/<account_uid>/domain/<domain_uid>/scan", methods=["POST"])
 def request_scan(account_uid, domain_uid):
+    auth_response = validate_bearer_token()
+    if auth_response: return auth_response
+
     scan_uid = generate_uid()
     scans[scan_uid] = {
         "status": "pending",
         "domain_uid": domain_uid,
-        "name": "example.com",
+        "name": "tropicosecurity.com",
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "start_time": time.time(),
     }
@@ -98,6 +120,9 @@ def request_scan(account_uid, domain_uid):
 # Endpoint 4: Check Scan Status by Account ID, Domain ID, and Scan ID
 @app.route("/account/<account_uid>/domain/<domain_uid>/scan/<scan_uid>", methods=["GET"])
 def check_scan_status(account_uid, domain_uid, scan_uid):
+    auth_response = validate_bearer_token()
+    if auth_response: return auth_response
+
     # Fetch scan data using scan_uid
     scan_data = scans.get(scan_uid)
     if not scan_data or scan_data["domain_uid"] != domain_uid:
