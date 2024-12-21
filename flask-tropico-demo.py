@@ -7,8 +7,9 @@ import os
 
 app = Flask(__name__)
 
-# In-memory storage for scan states
+# In-memory storage for scan states and domains
 scans = {}
+domains = {}
 
 # Bearer Token (replace with a secure method, such as environment variable)
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN", "your-siscolino-bearer-token")
@@ -39,7 +40,7 @@ def random_risk_factors():
     return random.sample(risk_factors, random.randint(1, 5))
 
 # Helper function to generate randomized endpoint details
-def generate_endpoints():
+def generate_endpoints(domain_name):
     frameworks = ["Django", "Express", "Spring Boot", "Flask", "Laravel"]
     api_types = ["JSON-API", "HTML WEB"]
     environments = ["Production", "Staging", "Development"]
@@ -49,7 +50,7 @@ def generate_endpoints():
         endpoint = {
             "endpoint_uid": generate_uid(),
             "endpoint_name": f"/api/v1/{random.choice(['users', 'orders', 'payments', 'products', 'inventory'])}",
-            "hostname": f"{random.choice(['api', 'orders', 'payments'])}.example.com",
+            "hostname": f"{random.choice(['api', 'orders', 'payments'])}.{domain_name}",
             "environment": random.choice(environments),
             "framework": random.choice(frameworks),
             "api_type": random.choice(api_types),
@@ -99,6 +100,11 @@ def add_domain(account_uid):
         return jsonify({"error": "Missing domain name"}), 400
 
     domain_uid = generate_uid()
+    # Store the domain name with the domain_uid
+    domains[domain_uid] = {
+        "account_uid": account_uid,
+        "domain_name": data["domain_name"]
+    }
     return jsonify({"domain_uid": domain_uid}), 200
 
 # Endpoint 3: Request Domain Scan
@@ -107,11 +113,14 @@ def request_scan(account_uid, domain_uid):
     auth_response = validate_bearer_token()
     if auth_response: return auth_response
 
+    if domain_uid not in domains:
+        return jsonify({"error": "Domain not found"}), 404
+
     scan_uid = generate_uid()
     scans[scan_uid] = {
         "status": "pending",
         "domain_uid": domain_uid,
-        "name": "tropicosecurity.com",
+        "name": domains[domain_uid]["domain_name"],  # Fetch domain name
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "start_time": time.time(),
     }
@@ -132,7 +141,7 @@ def check_scan_status(account_uid, domain_uid, scan_uid):
     if time.time() - scan_data["start_time"] > 5:
         # Generate completed scan result
         scan_data["status"] = "completed"
-        scan_data["endpoints"] = generate_endpoints()
+        scan_data["endpoints"] = generate_endpoints(scan_data["name"])  # Use domain name for hostname
 
     # Return the scan data
     if scan_data["status"] == "pending":
@@ -140,7 +149,7 @@ def check_scan_status(account_uid, domain_uid, scan_uid):
             "scan_status": "pending",
             "domain": {
                 "domain_uid": scan_data["domain_uid"],
-                "name": scan_data["name"],
+                "name": scan_data["name"],  # Use the stored domain name
                 "timestamp": scan_data["timestamp"],
             }
         }), 200
@@ -150,9 +159,9 @@ def check_scan_status(account_uid, domain_uid, scan_uid):
             "scan_status": "completed",
             "domain": {
                 "domain_uid": scan_data["domain_uid"],
-                "name": scan_data["name"],
+                "name": scan_data["name"],  # Use the stored domain name
                 "timestamp": scan_data["timestamp"],
-                "endpoints": scan_data["endpoints"],
+                "endpoints": scan_data["endpoints"],  # Includes domain-specific hostname
             }
         }), 200
 
